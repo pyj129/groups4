@@ -162,63 +162,69 @@ with tab1:
     자연수를 점진적으로 소인수로 분해하는 과정을 트리 구조로 나타냅니다.
     """)
     
-    def render_slash_branch(n: int, factor_list: List[int]) -> str:
-        # 한 경로로 분해된 (left, right) 쌍 목록 생성
-        steps: List[Tuple[int, int]] = []
-        remaining = n
-        while remaining > 1:
-            found = False
-            for f in sorted(set(factor_list)):
-                if remaining % f == 0 and remaining != 1:
-                    left = f
-                    right = remaining // f
-                    steps.append((left, right))
-                    remaining = right
-                    found = True
-                    break
-            if not found:
-                break
+    def is_prime(n: int) -> bool:
+        if n < 2:
+            return False
+        if n == 2:
+            return True
+        if n % 2 == 0:
+            return False
+        p = 3
+        while p * p <= n:
+            if n % p == 0:
+                return False
+            p += 2
+        return True
 
-        # ASCII로 렌더링 (슬래시 사용)
-        base_indent = 20
-        lines: List[str] = []
-        lines.append(' ' * base_indent + str(n))
-        for i, (left, right) in enumerate(steps):
-            indent_slash = base_indent - i * 4 - 1
-            if indent_slash < 0:
-                indent_slash = 0
-            lines.append(' ' * indent_slash + '/    \\')
-            # 숫자 배치
-            left_s = str(left)
-            right_s = str(right)
-            left_pos = max(0, indent_slash - 2)
-            right_pos = indent_slash + 5
-            width = right_pos + len(right_s) + 1
-            line_chars = [' '] * width
-            for idx, ch in enumerate(left_s):
-                if left_pos + idx < width:
-                    line_chars[left_pos + idx] = ch
-            for idx, ch in enumerate(right_s):
-                if right_pos + idx < width:
-                    line_chars[right_pos + idx] = ch
-            lines.append(''.join(line_chars).rstrip())
+    def smallest_prime_factor(n: int) -> int:
+        if n % 2 == 0:
+            return 2
+        p = 3
+        while p * p <= n:
+            if n % p == 0:
+                return p
+            p += 2
+        return n
 
-        return "```\n" + "\n".join(lines) + "\n```"
+    def build_factor_tree_dot(n: int) -> str:
+        counter = {"i": 0}
+        nodes: Dict[str, str] = {}
+        edges: List[Tuple[str, str]] = []
 
-    # 사용자가 요청한 정확한 ASCII 출력이 필요할 경우 우선 적용
-    if number == 24:
-        custom = '''```
-               24
-               /    \\
-              2      12
-                 /    \\
-                2      6
-                       /    \\
-                      2      3
-    ```'''
-        st.markdown(custom)
-    else:
-        st.markdown(render_slash_branch(number, factors))
+        def new_node(label: str) -> str:
+            idx = counter["i"]
+            counter["i"] += 1
+            nid = f"n{idx}"
+            nodes[nid] = label
+            return nid
+
+        root = new_node(str(n))
+
+        def build(node_id: str, value: int):
+            if value < 2 or is_prime(value):
+                return
+            p = smallest_prime_factor(value)
+            q = value // p
+            left = new_node(str(p))
+            right = new_node(str(q))
+            edges.append((node_id, left))
+            edges.append((node_id, right))
+            if q > 1 and not is_prime(q):
+                build(right, q)
+
+        build(root, n)
+
+        lines = ["digraph G {", "  node [shape=circle, fontsize=12];", "  rankdir=TB;"]
+        for nid, label in nodes.items():
+            lines.append(f'  {nid} [label="{label}"];')
+        for a, b in edges:
+            lines.append(f'  {a} -> {b};')
+        lines.append("}")
+        return "\n".join(lines)
+
+    # Graphviz를 사용해 트리 렌더링
+    dot = build_factor_tree_dot(number)
+    st.graphviz_chart(dot)
     
     # 방법 3: L자형 나눗셈
     st.markdown("#### ➗ 방법 3: L자형 나눗셈")
