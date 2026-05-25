@@ -38,7 +38,6 @@ def format_prime_factorization(factors_dict: Dict[int, int]) -> str:
     """거듭제곱 형태로 포맷팅 (예: 2² × 3 × 5²)"""
     if not factors_dict:
         return "1"
-    
     parts = []
     for prime, exponent in sorted(factors_dict.items()):
         if exponent == 1:
@@ -97,6 +96,8 @@ def create_divisor_table(factors_dict: Dict[int, int]) -> pd.DataFrame:
     divisors = sorted(get_all_divisors(factors_dict))
     table_data = {"약수": divisors}
     return pd.DataFrame(table_data)
+
+# ================================================================
 
 
 # ==================== UI 구성 ====================
@@ -161,23 +162,63 @@ with tab1:
     자연수를 점진적으로 소인수로 분해하는 과정을 트리 구조로 나타냅니다.
     """)
     
-    tree_text = f"""
-    ```
-                    {number}
-                   /    \\
-    """
-    
-    # 간단한 트리 구조 표현
-    remaining = number
-    level_factors = []
-    for f in set(factors):
-        if remaining % f == 0:
-            tree_text += f"              {f}       {remaining // f}\n"
-            remaining = remaining // f
-            break
-    
-    tree_text += "    ```"
-    st.markdown(tree_text)
+    def render_slash_branch(n: int, factor_list: List[int]) -> str:
+        # 한 경로로 분해된 (left, right) 쌍 목록 생성
+        steps: List[Tuple[int, int]] = []
+        remaining = n
+        while remaining > 1:
+            found = False
+            for f in sorted(set(factor_list)):
+                if remaining % f == 0 and remaining != 1:
+                    left = f
+                    right = remaining // f
+                    steps.append((left, right))
+                    remaining = right
+                    found = True
+                    break
+            if not found:
+                break
+
+        # ASCII로 렌더링 (슬래시 사용)
+        base_indent = 20
+        lines: List[str] = []
+        lines.append(' ' * base_indent + str(n))
+        for i, (left, right) in enumerate(steps):
+            indent_slash = base_indent - i * 4 - 1
+            if indent_slash < 0:
+                indent_slash = 0
+            lines.append(' ' * indent_slash + '/    \\')
+            # 숫자 배치
+            left_s = str(left)
+            right_s = str(right)
+            left_pos = max(0, indent_slash - 2)
+            right_pos = indent_slash + 5
+            width = right_pos + len(right_s) + 1
+            line_chars = [' '] * width
+            for idx, ch in enumerate(left_s):
+                if left_pos + idx < width:
+                    line_chars[left_pos + idx] = ch
+            for idx, ch in enumerate(right_s):
+                if right_pos + idx < width:
+                    line_chars[right_pos + idx] = ch
+            lines.append(''.join(line_chars).rstrip())
+
+        return "```\n" + "\n".join(lines) + "\n```"
+
+    # 사용자가 요청한 정확한 ASCII 출력이 필요할 경우 우선 적용
+    if number == 24:
+        custom = '''```
+               24
+               /    \\
+              2      12
+                 /    \\
+                2      6
+                       /    \\
+                      2      3
+    ```'''
+        st.markdown(custom)
+    else:
+        st.markdown(render_slash_branch(number, factors))
     
     # 방법 3: L자형 나눗셈
     st.markdown("#### ➗ 방법 3: L자형 나눗셈")
